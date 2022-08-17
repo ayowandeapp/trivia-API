@@ -11,7 +11,7 @@ from models import setup_db, Question, Category
 QUESTIONS_PER_PAGE = 10
 def paginate_questions(request,selection):
   page = request.args.get('page',1,type=int)
-  start = (page -1)+QUESTIONS_PER_PAGE
+  start = (page -1)*QUESTIONS_PER_PAGE
   end = start+QUESTIONS_PER_PAGE
   questions=[question.format() for question in selection]
   current_questions=questions[start:end]
@@ -107,7 +107,7 @@ def create_app(test_config=None):
 
       question=Question.query.filter(Question.id==question_id).one_or_none()
       if question is None:
-        abort(404)
+        abort(422)
       question.delete()
       selection = Question.query.order_by(Question.id).all()
       current_questions = paginate_questions(request, selection)
@@ -119,7 +119,7 @@ def create_app(test_config=None):
         'categories':categories_dict
         })
     except:
-      abort(404)
+      abort(422)
   '''
   TEST: When you click the trash icon next to a question, the question will be removed.
   This removal will persist in the database and when you refresh the page. 
@@ -134,25 +134,19 @@ def create_app(test_config=None):
   @app.route('/questions', methods=['POST'])
   def create_question():
     body = request.get_json()
-    search=body.get('searchTerm',None)
+    search=body.get('searchTerm')
     if search:
       try:
         selection=Question.query.order_by(Question.id).filter(Question.question.ilike(f"%{search}%")).all()
-        if len(selection) <11:
-          return jsonify({
-            'success':True,
-            'questions':[question.format() for question in selection],
-            'total_questions':len(selection),
-            'current_category':None
-            })
-        else: 
-          current_questions = paginate_questions(request, selection)
-          return jsonify({
-            'success':True,
-            'questions':current_questions,
-            'total_questions':len(selection),
-            'current_category':None
-            })
+        if (len(selection) == 0):
+          abort(404) 
+        current_questions = paginate_questions(request, selection)
+        return jsonify({
+          'success':True,
+          'questions':current_questions,
+          'total_questions':len(selection),
+           'current_category':None
+          })
       except:
         abort(404)
 
@@ -223,24 +217,13 @@ def create_app(test_config=None):
       selection=Question.query.filter(Question.category==category_id).order_by(Question.id).all()
       if get_category_name is None:
         abort(404)
-      if len(selection) <11:
-        return jsonify({
-        'success':True,
-        'questions':[question.format() for question in selection],
-        'total_questions':len(selection),
-        'current_category':get_category_name.type
-        })
-      else:
-        current_questions = paginate_questions(request, selection)
+      current_questions = paginate_questions(request, selection)
       return jsonify({
         'success':True,
         'questions':current_questions,
         'total_questions':len(selection),
         'current_category':get_category_name.type
         })
-
-
-      
     except:
       abort(404)
 
@@ -265,6 +248,8 @@ def create_app(test_config=None):
       body = request.get_json()
       category=body.get('quiz_category',None)
       previous_questions=body.get('previous_questions',None)
+      if ((category is None) or (previous_questions is None)):
+        abort(404)
       if (category['id'] ==0):
         available_questions = Question.query.filter(Question.id.notin_((previous_questions))).all()
       else:

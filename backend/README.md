@@ -117,7 +117,7 @@ The app describes a means of question and answering session based on the categor
 
 ## Error Handling
 - 422 - Unprocessable
-- 404 - reource not found
+- 404 - Not Found
 - 405 - method not allowed
 
 ## Endpoints
